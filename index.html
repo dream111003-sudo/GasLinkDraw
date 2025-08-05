@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>くじ引き抽選結果</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      text-align: center;
+      background-color: #f0f8ff;
+    }
+    h1 {
+      font-size: 2.2em;
+      margin-top: 1em;
+    }
+    #result {
+      font-size: 1.5em;
+      margin-top: 2em;
+    }
+    #draw-button {
+      padding: 1em 2em;
+      font-size: 1.2em;
+      background-color: #ff69b4;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 2em;
+    }
+    #draw-button:hover {
+      background-color: #ff1493;
+    }
+    #winners-table {
+      margin: 2em auto;
+      border-collapse: collapse;
+      width: 90%;
+      max-width: 600px;
+    }
+    #winners-table th, #winners-table td {
+      border: 1px solid #ccc;
+      padding: 0.8em;
+    }
+    #winners-table th {
+      background-color: #ffecf0;
+    }
+    .confetti {
+      animation: confetti 1s ease-out;
+    }
+    @keyframes confetti {
+      from { opacity: 0; transform: translateY(-100px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <h1 id="main-title">ボタンを押して抽選！</h1>
+  <button id="draw-button" style="display:none;">抽選する</button>
+
+  <div id="result"></div>
+  <audio id="bgm" src="bgm.mp3" preload="auto"></audio>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const pid = urlParams.get('pid');
+    const apiUrl = 'https://script.google.com/macros/s/AKfycbwwRDpHvID-6gbRVrG4t3xbXcu4VASY7vaFDfSXSDTe2Z-CuCX-Ppo5wRVWSw0av1Ci/exec?pid=' + pid;
+
+    const drawButton = document.getElementById('draw-button');
+    const resultDiv = document.getElementById('result');
+    const mainTitle = document.getElementById('main-title');
+    const bgm = document.getElementById('bgm');
+
+    fetch(apiUrl)
+      .then(res => res.json())
+      .then(data => {
+        if (data.result === 'win') {
+          bgm.play();
+          mainTitle.innerText = '🎉当選おめでとうございます！🎉';
+          resultDiv.innerHTML = `
+            <p>${data.name} さんが当選しました！</p>
+            <p>🎁 景品: <strong>${data.prize}</strong></p>
+          `;
+          launchConfetti();
+        } else if (data.result === 'already_won') {
+          mainTitle.innerText = '✅既に当選済みです';
+          resultDiv.innerHTML = 'このIDはすでに当選しています。';
+        } else if (data.result === 'limit_reached') {
+          mainTitle.innerText = '🎊抽選は終了しました';
+          drawButton.style.display = 'inline-block';
+          drawButton.onclick = showWinnersTable;
+        } else if (data.result === 'no_prize') {
+          mainTitle.innerText = '😢景品が残っていません';
+        } else if (data.error) {
+          mainTitle.innerText = '❌エラーが発生しました';
+          resultDiv.innerText = data.error;
+        }
+      })
+      .catch(error => {
+        mainTitle.innerText = '❌通信エラーが発生しました';
+        resultDiv.innerText = error;
+      });
+
+    function showWinnersTable() {
+      fetch('https://script.google.com/macros/s/AKfycbwwRDpHvID-6gbRVrG4t3xbXcu4VASY7vaFDfSXSDTe2Z-CuCX-Ppo5wRVWSw0av1Ci/exec?pid=all')
+        .then(res => res.json())
+        .then(data => {
+          mainTitle.innerText = '🎉今回の抽選結果一覧🎁';
+          let table = `
+            <table id="winners-table">
+              <tr><th>名前</th><th>景品</th></tr>
+              ${data.winners.map(w => `<tr><td>${w.name}</td><td>${w.prize}</td></tr>`).join('')}
+            </table>
+          `;
+          resultDiv.innerHTML = table;
+        });
+    }
+
+    function launchConfetti() {
+      document.body.classList.add('confetti');
+    }
+  </script>
+</body>
+</html>
